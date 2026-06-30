@@ -118,6 +118,23 @@ Screen Time** content filter + passcode model.
 
 ## 5. Audits
 
+### Architecture landscape (3 competitors audited)
+
+Three distinct filtering models seen — pick OFFBET's deliberately:
+
+| Competitor | Filtering engine | Distribution | Browser-DoH lockdown | Robustness |
+|------------|------------------|--------------|----------------------|------------|
+| **Gamban** v4 | **NetworkExtension** system extension (dns-proxy + content-filter) | Developer ID direct | ✅ yes (managed policies) | 🟢 strongest |
+| **GamBlock/Detoxify** v1 | **dnscrypt-proxy** root LaunchDaemon → own resolvers (server-side blocking) | Developer ID direct (Sparkle) | ❌ no | 🟡 medium |
+| **BetBlocker** v3.6 | **Electron + `sudo-prompt`** → writes `/etc/hosts` + system DNS | Developer ID direct (electron-updater) | ❌ no | 🔴 weakest |
+
+Takeaways for OFFBET: (1) **NetworkExtension is the robust target** (Gamban); the
+loopback/hosts models are all bypassable by browser DoH. (2) **M-2 (browser-DoH
+lockdown) is mandatory** — only Gamban does it. (3) keep filtering **100% local**
+(GamBlock ships queries to its resolvers; OFFBET's local matcher is the privacy/$0
+edge). (4) BetBlocker validates the **Electron shell** but its `/etc/hosts`
+mechanism is exactly what OFFBET-Windows already rejected.
+
 ### Gamban — `com.gamban.Gamban` v4.0 (desktop) · audited 2026-06-30 (from `Gamban_Setup.dmg`, Linux-side)
 
 > Closest competitor in purpose on macOS: a paid, gambling-specific blocker.
@@ -195,6 +212,38 @@ Screen Time** content filter + passcode model.
 - **TODO on MacBook:** `spctl`/`stapler` (notarized?), whether it **pins system
   DNS + watchdog** re-asserts on change, any `SMJobBless` helper to install the
   daemon, and confirm zero browser handling.
+
+### BetBlocker — BetBlocker.app v3.6.3 (arm64) · audited 2026-06-30 (from `BetBlocker-3.6.3-arm64.dmg`, Linux-side)
+
+> Free self-exclusion tool (charity, betblocker.org). The DMG is bzip2 UDIF;
+> analysis from a partial bzip2 decompress of the image (the bundled JS is in
+> clear). **Simplest of the three — Electron + privileged shell, no daemon, no NE.**
+
+- **Stack:** **Electron 31.7.7** (Chrome 126), Angular/RxJS bundle. Signed
+  **Developer ID Application: Radoslav Stoyanov (X237VLJ8WJ)** → direct
+  distribution, auto-update via **electron-updater** (`app-update.yml`). Not App Store.
+- **Filtering = `/etc/hosts` + system DNS, applied via privileged shell.** The
+  renderer calls `window.require("sudo-prompt")` and runs
+  `app_config.vpn_admin_rights[].exec` commands **as root** to `setupLocalHost()`
+  (write blocked domains into **`/etc/hosts`**) and `setupDns()` (set system DNS).
+  No NetworkExtension, no resolver daemon — static hosts + DNS, re-applied on launch.
+- **Persistence:** `watchdog` / `relaunch` / keep-alive references (re-applies the
+  hosts/DNS; no robust system extension). Has a **PIN/password** + the BetBlocker
+  **"reminder" self-exclusion** period model.
+- **Weaknesses (= OFFBET's edges):**
+  - **No browser-DoH lockdown** → Chrome/Firefox/Brave built-in DoH bypasses
+    `/etc/hosts` + system DNS entirely. ⇒ M-2 again.
+  - **`/etc/hosts` only** = exact-domain matching, no suffix/wildcard, and the
+    list it can write is limited — the exact model OFFBET-Windows rejected.
+  - **Security smell:** running config-supplied `exec` strings with **`sudo`** is
+    a root-RCE class risk if the config is remote/tampered. **OFFBET must not do
+    this** (fixed-purpose privileged helper, never arbitrary exec).
+- **Net for OFFBET:** confirms the **Electron shell** path (matches our plan) but
+  is the weakest filtering model; reinforces M-1 (use NetworkExtension, not hosts)
+  and M-2 (browser-DoH lockdown). Note the sudo-exec anti-pattern to avoid.
+- **TODO on MacBook:** confirm notarization (`spctl`/`stapler`), whether a
+  LaunchAgent/Daemon is installed for the watchdog, and exactly which `exec`
+  commands run as root.
 
 ### _<next app>_ — `<bundle id>` v? · audited YYYY-MM-DD
 _Template — copy the Gamban block. Capture: distribution (App Store vs Developer
