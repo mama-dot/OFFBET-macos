@@ -129,6 +129,7 @@ Four distinct models — pick OFFBET's deliberately:
 | **Gamban** v4 | **NetworkExtension** system extension (dns-proxy + content-filter) | Developer ID direct (notarized) | ✅ managed policies | via NE | ✅ | 🟢 strongest |
 | **Safezino** v4 | **Shell-installed multi-daemon**: `/etc/hosts` + system DNS→own resolver + **`pf` anti-VPN** + browser policies | **`curl\|sudo bash`** (no app, **no notarization**) | ✅ managed policies | ✅ **pf blocks VPN tunnels** | ❌ own resolver | 🟢 aggressive (shady) |
 | **GamBlock/Detoxify** v1 | **dnscrypt-proxy** root LaunchDaemon → own resolvers (server-side blocking) | Developer ID direct (Sparkle) | ❌ | ❌ | ❌ own resolver | 🟡 medium |
+| **Freedom** | **Native app + SMJobBless privileged helper** → `/etc/hosts` (local) | Developer ID direct (Sparkle) | ❌ | ❌ | ✅ (hosts, nothing off-machine) | 🟡 productivity-grade (not adversarial) |
 | **BetBlocker** v3.6 | **Electron + `sudo-prompt`** → writes `/etc/hosts` + system DNS | Developer ID direct (electron-updater) | ❌ | ❌ | partial (hosts) | 🔴 weakest |
 
 Takeaways: (1) **NetworkExtension is the robust, clean target** (Gamban). (2)
@@ -290,6 +291,35 @@ matcher is the edge.
   no-notarization `curl|sudo` UX — a signed/notarized app is more trustworthy.
 - **TODO on MacBook:** the exact pf rules, the browser-policy values
   (`DnsOverHttpsMode` = off/locked?), and the full 24h uninstall flow.
+
+### Freedom — `to.freedom.*` (Eighty Percent Solutions Corp.) · audited 2026-06-30 (from `FreedomSetup.dmg`, Linux-side)
+
+> Cross-platform **productivity** blocker (freedom.to) — focus sessions, not
+> gambling-specific. Cited in the v8.2 PDF as proof that local filtering "doesn't
+> send traffic off the machine". DMG is bzip2 UDIF; partial-decompress analysis.
+
+- **Distribution:** Developer ID — **Eighty Percent Solutions Corporation** (team
+  `G9…`), auto-update via **Sparkle**. Not App Store.
+- **Shape:** native macOS app (the UI is **sandboxed**, `com.apple.security.app-sandbox`).
+- **Filtering = privileged helper + `/etc/hosts`.** Installs a **SMJobBless /
+  SMAppService privileged helper** (LaunchDaemon) that edits **`/etc/hosts`** (and
+  touches `networksetup`) to block the user's chosen sites during sessions —
+  **100% local** (their support confirms nothing leaves the machine). A legacy
+  **`kext`** reference appears (older Freedom shipped a kernel content-filter; likely
+  vestigial). **No NetworkExtension provider strings** found in the analyzed chunk.
+- **Anti-bypass:** **none hardened** — no browser-DoH lockdown, no anti-VPN, hosts
+  only. Freedom has a "Locked Mode" (can't stop a session early) but it's
+  productivity-grade, not an adversarial self-exclusion fortress. DoH / changing
+  DNS / another browser bypasses it.
+- **UX:** a **real native app** (menu bar + windows) — the opposite of Safezino's
+  invisible daemons; a good UX reference point.
+- **Net for OFFBET:** validates the **SMJobBless/SMAppService privileged-helper**
+  pattern (the mac analogue of the Windows C# SYSTEM service) **if** OFFBET takes
+  the loopback/helper route instead of NetworkExtension — and that a clean app UX
+  + Developer ID + Sparkle is the norm. But its hosts-only filtering is the weak
+  tier (no M-2). Confirms 100%-local is a shipped, defensible model.
+- **TODO on MacBook:** confirm the helper label + what it writes, whether the
+  `kext` is actually loaded (likely not on modern macOS), notarization.
 
 ### _<next app>_ — `<bundle id>` v? · audited YYYY-MM-DD
 _Template — copy the Gamban block. Capture: distribution (App Store vs Developer
