@@ -104,6 +104,7 @@ each competitor closes:
 | M-8 | **Bypass-state detection** — watch DNS change, active 3rd-party VPN, extension disabled, profile removed → heartbeat `bypass_attempt`. | parallels Android C-6/C-11 | 🟡 MED | ⬜ TODO |
 | M-9 | **pf anti-VPN firewall** — `pf` anchor that blocks/limits third-party VPN tunnels (utun*/ipsec*) so a NordVPN-style tunnel can't shadow filtering. Tradeoff: may break iCloud Private Relay (acceptable for a blocker). | Safezino (`pf` "anti-VPN v4") | 🟡 MED | ⬜ TODO |
 | M-10 | **Immutable-flag anti-tamper** — `chflags noschg` (+ SIP-aware) on OFFBET's own config (hosts/pf/plists) so casual edits/deletes fail. Honest naming only (no Apple impersonation). | Safezino (`chflags noschg`) | 🟢 LOW | ⬜ TODO |
+| M-11 | **In-browser blocking layer** — OFFBET browser extension + native-messaging host (Chrome/Edge/Firefox + Safari `.appex`), **force-installed & locked via managed policy** (M-2). DoH-immune (sees URLs in-browser) — complements the network filter for the cases DNS/NE can't see. OFFBET already markets an "Extension". | Cold Turkey | 🟡 MED | ⬜ TODO |
 
 ---
 
@@ -130,6 +131,7 @@ Four distinct models — pick OFFBET's deliberately:
 | **Safezino** v4 | **Shell-installed multi-daemon**: `/etc/hosts` + system DNS→own resolver + **`pf` anti-VPN** + browser policies | **`curl\|sudo bash`** (no app, **no notarization**) | ✅ managed policies | ✅ **pf blocks VPN tunnels** | ❌ own resolver | 🟢 aggressive (shady) |
 | **GamBlock/Detoxify** v1 | **dnscrypt-proxy** root LaunchDaemon → own resolvers (server-side blocking) | Developer ID direct (Sparkle) | ❌ | ❌ | ❌ own resolver | 🟡 medium |
 | **Freedom** | **Native app + SMJobBless privileged helper** → `/etc/hosts` (local) | Developer ID direct (Sparkle) | ❌ | ❌ | ✅ (hosts, nothing off-machine) | 🟡 productivity-grade (not adversarial) |
+| **Cold Turkey** v4.9 | **In-browser: extension + Native Messaging Host** (Chrome/Edge/Firefox + Safari `.appex`) + app-block via KeepAlive LaunchAgent | Developer ID `.pkg` | 🟢 **immune** (blocks in-browser, DNS-independent) | ❌ (browser+app only, no network layer) | ✅ (in-browser) | 🟡 productivity, strong "locked mode" |
 | **BetBlocker** v3.6 | **Electron + `sudo-prompt`** → writes `/etc/hosts` + system DNS | Developer ID direct (electron-updater) | ❌ | ❌ | partial (hosts) | 🔴 weakest |
 
 Takeaways: (1) **NetworkExtension is the robust, clean target** (Gamban). (2)
@@ -320,6 +322,40 @@ matcher is the edge.
   tier (no M-2). Confirms 100%-local is a shipped, defensible model.
 - **TODO on MacBook:** confirm the helper label + what it writes, whether the
   `kext` is actually loaded (likely not on modern macOS), notarization.
+
+### Cold Turkey Blocker — `com.getcoldturkey.blocker` v4.9 · audited 2026-06-30 (from `Cold_Turkey_Mac_Installer.pkg`)
+
+> Popular **productivity** blocker, famous for hard-to-bypass "locked"/"Frozen
+> Turkey" modes. The `.pkg` is a xar archive — parsed in pure Python (TOC +
+> PackageInfo + postinstall). **6th architecture, unique: in-browser, not network.**
+
+- **Distribution:** Developer ID **`.pkg`** (auth=root, installs to `/Applications`).
+  4 components: `Cold_Turkey_Blocker.pkg` (the app) + **`NMHChrome.pkg` /
+  `NMHEdge.pkg` / `NMHFirefox.pkg`** (native-messaging hosts) + a bundled
+  **`NMHSafari.appex`** Safari extension. Pkg ids `com.getcoldturkey.*`.
+- **Website blocking = browser extension + Native Messaging Host (NMH).** It
+  installs its own extension into Chrome/Edge/Firefox (+ Safari `.appex`); the
+  extension blocks pages **inside the browser** and talks to the native app via
+  native messaging. **No DNS, no `/etc/hosts`, no NetworkExtension, no pf.**
+  - **DoH-immune by design**: the extension sees the URL in-browser regardless of
+    how DNS resolves — the opposite answer to the bypass everyone else struggles with.
+  - **Limits**: only the browsers it has an extension for; the user can disable the
+    extension unless it's **force-installed via managed policy** (which Cold Turkey
+    doesn't do — relies on "locked mode" instead). An unsupported browser isn't blocked.
+- **App blocking + scheduling:** main app runs as a **`launchkeep.cold-turkey`
+  LaunchAgent** (`KeepAlive`, `-agent`) — a *user* agent, not a root daemon. State
+  in two SQLite DBs (`data-app.db`, `data-browser.db`).
+- **Anti-bypass:** the renowned **"locked" block** (can't stop/uninstall until the
+  timer ends) + KeepAlive relaunch. No network-layer hardening; relies on the
+  lock + the user not killing the agent. Install scripts run as root and are a bit
+  sloppy (`sudo echo > plist`) but **no config-supplied exec** (unlike BetBlocker).
+- **Net for OFFBET:** introduces the **in-browser extension/NMH layer (M-11)** —
+  the only model here that's **inherently DoH-proof**, and OFFBET already advertises
+  an "Extension". Best combined with **M-2** (managed policy to *force-install +
+  lock* the extension and block others). Confirms `.pkg` + LaunchAgent as a valid
+  packaging path, and "locked mode" as a UX anti-bypass idea (cf. OFFBET PIN/delay).
+- **TODO on MacBook:** confirm notarization (`spctl`/`stapler` on the pkg), how
+  "locked mode" resists uninstall, and whether the Chromium extension also covers Brave/Arc.
 
 ### _<next app>_ — `<bundle id>` v? · audited YYYY-MM-DD
 _Template — copy the Gamban block. Capture: distribution (App Store vs Developer
