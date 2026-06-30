@@ -95,7 +95,7 @@ each competitor closes:
 | ID | Item | Source | Priority | Status |
 |----|------|--------|----------|--------|
 | M-1 | **NetworkExtension filtering** — DNS-proxy + content-filter *system extension* (Developer ID), carrying the OFFBET matcher. Replaces the v8.2 `/etc/hosts` plan. | Gamban | 🔴 HIGH | ⬜ TODO |
-| M-2 | **Browser managed-policy injection** — write Chrome/Edge/Brave/Firefox managed policies to (a) **disable built-in DoH** or pin it (`DnsOverHttpsMode=off`), (b) **block VPN/proxy extensions** (`ExtensionInstallBlocklist`). Closes the #1 desktop bypass. | Gamban (`ExtensionInstallBlocklist`, `TrrModeTrustedResolverOnly`, `browserPolicy`) | 🔴 HIGH | ⬜ TODO |
+| M-2 | **Browser managed-policy injection** — write Chrome/Edge/Brave/Firefox managed policies to (a) **disable built-in DoH** or pin it (`DnsOverHttpsMode=off`), (b) **block VPN/proxy extensions** (`ExtensionInstallBlocklist`). Closes the #1 desktop bypass. | Gamban **does it** (`ExtensionInstallBlocklist`/`TrrModeTrustedResolverOnly`/`browserPolicy`); **GamBlock lacks it** → browser-DoH bypass (beatable) | 🔴 HIGH | ⬜ TODO |
 | M-3 | **NEDNSSettings / DNS-proxy config** to own system DNS resolution (the `dns-settings` entitlement). | Gamban | 🟡 MED | ⬜ TODO |
 | M-4 | **Developer ID direct distribution + notarization** (mirrors Windows direct-download). App Store later if useful. | Gamban (DIRECT profile) | 🔴 HIGH | ⬜ TODO |
 | M-5 | **Signature-verified uninstaller + anti-tamper** on the app's own files; `SMAppService` keep-alive so quitting/unloading re-launches. (Apple concedes true anti-uninstall is impossible — see M-6.) | Gamban (`UninstallerEntryPoint`+`signatureVerification`) | 🟡 MED | ⬜ TODO |
@@ -155,6 +155,46 @@ Screen Time** content filter + passcode model.
 - **TODO on MacBook:** confirm which NEProvider is actually loaded
   (`systemextensionsctl list`), read the on-disk browser policy files it writes,
   check for a privileged helper / LaunchDaemon, and how it detects/repairs tamper.
+
+### GamBlock / "Detoxify" — `mac.com.familyfirst.ggg` v1.0.2 (2021) · audited 2026-06-30 (from `GGG.zip`, Linux-side)
+
+> Long-running gambling-specific blocker (GamBlock, by "Family First"; Firebase
+> project `gamblock`). Sample was a build codenamed **GGG**, but the daemon paths
+> point to **`/Applications/Detoxify.app`** (a sibling/rebrand). **Opposite
+> architecture to Gamban** — an older loopback-DNS model, no NetworkExtension.
+
+- **Distribution:** **Developer ID, direct** — auto-update via **Sparkle**
+  (`SUFeedURL = https://ggg-macos-distribution.s3.amazonaws.com/appcast.xml`,
+  EdDSA-signed). Not App Store.
+- **Shape:** menu-bar **agent** app (`LSUIElement`), Swift/AppKit, **gRPC+Protobuf**
+  IPC to the daemon, **Firebase** backend. Main app is **sandboxed**
+  (`com.apple.security.app-sandbox`) and has **no NetworkExtension entitlement**.
+- **Filtering = `dnscrypt-proxy` as a root LaunchDaemon.** `DTXBurrowService` is
+  the Go **dnscrypt-proxy** binary (strings: "dnscrypt-proxy is ready", DNS
+  stamps, `blocked_names`, cloaking, DoH/DNSCrypt). LaunchDaemon `KeepAlive` +
+  `RunAtLoad` runs it as root with `-config dnscrypt-proxy.toml`, listening on
+  **`127.0.0.1:53`** (system DNS pinned to loopback). No `/etc/hosts`, no system extension.
+- **Blocking is partly SERVER-SIDE.** The bundled toml sets
+  `server_names = ['detoxify-primary','detoxify-secondary']` → it forwards over
+  encrypted DNS to **GamBlock's own resolvers**, which do the gambling blocking
+  (plus optional local cloaking/`blocked_names`). ⇒ **NOT 100% local**: their
+  resolvers see the user's DNS queries (a privacy/RGPD cost, and a per-user
+  server cost) — **the exact model OFFBET deliberately rejected.**
+- **Weaknesses (= OFFBET's edges):**
+  - **No browser-policy injection** found → **browser built-in DoH (Chrome/
+    Firefox/Brave) bypasses it entirely** (those skip system DNS). ⇒ reinforces **M-2**.
+  - **Server-side resolver** dependency → privacy + scaling cost. OFFBET's
+    100%-local matcher is more private and **$0/scale** ⇒ a positioning edge.
+  - **Anti-uninstall** rests only on the LaunchDaemon `KeepAlive`; the sandboxed
+    agent can't defend itself. Delete the daemon/app and it's gone ⇒ heartbeat (M-6) is the lever.
+- **Net for OFFBET:** validates the loopback-resolver model is shippable on mac,
+  and that **dnscrypt-proxy** is a viable off-the-shelf engine (has blocklist/
+  cloaking built in) — but **only if paired with M-2** (browser-DoH lockdown) and
+  ideally kept **local** (don't adopt their custom-resolver/server-side model).
+  Confirms M-4 (Developer ID direct + Sparkle-style updates) and M-6 (heartbeat).
+- **TODO on MacBook:** `spctl`/`stapler` (notarized?), whether it **pins system
+  DNS + watchdog** re-asserts on change, any `SMJobBless` helper to install the
+  daemon, and confirm zero browser handling.
 
 ### _<next app>_ — `<bundle id>` v? · audited YYYY-MM-DD
 _Template — copy the Gamban block. Capture: distribution (App Store vs Developer
