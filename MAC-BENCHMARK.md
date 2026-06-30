@@ -161,3 +161,41 @@ _Template — copy the Gamban block. Capture: distribution (App Store vs Develop
 ID), filtering mechanism (NEProvider type / DNS-proxy / content-filter / hosts),
 browser-policy injection, anti-uninstall, configuration profile, bypass vectors
 closed (section 2), net-new backlog items._
+
+---
+
+## 6. Mac-side verification commands (run on the MacBook)
+
+The Linux-side analysis (`strings` + decoded `embedded.provisionprofile`) can't
+run Gatekeeper or read on-disk state. On the MacBook, per app (replace `PATH`):
+
+```bash
+# Signing, entitlements, distribution channel
+codesign -dvvv --entitlements - --xml PATH.app
+codesign -d -r-  PATH.app                 # designated requirement
+# Gatekeeper verdict + notarization
+spctl -a -vvv -t exec PATH.app            # "accepted, source=Notarized Developer ID" = notarized
+xcrun stapler validate PATH.app           # is the notarization ticket stapled?
+xcrun stapler validate PATH.dmg
+# System extension actually loaded + its provider type
+systemextensionsctl list
+plutil -p "PATH.app/Contents/Library/SystemExtensions/"*.systemextension/Contents/Info.plist | grep -A3 NEProviderClasses
+# Privileged helper / daemon (anti-uninstall)
+ls -la "PATH.app/Contents/Library/LaunchServices" 2>/dev/null
+ls /Library/LaunchDaemons /Library/LaunchAgents | grep -i <vendor>
+# Browser managed-policy injection (the M-2 technique)
+defaults read com.google.Chrome DnsOverHttpsMode 2>/dev/null
+defaults read com.google.Chrome ExtensionInstallBlocklist 2>/dev/null
+ls "/Library/Managed Preferences/"*/com.google.Chrome.plist /Library/Google/Chrome/policies/managed/ 2>/dev/null
+cat /Applications/Firefox.app/Contents/Resources/distribution/policies.json 2>/dev/null
+# Configuration profiles + DNS state
+profiles list ; profiles show -type configuration
+scutil --dns ; networksetup -getdnsservers Wi-Fi
+```
+
+**Gamban — to confirm on Mac:**
+- [ ] `spctl` / `stapler validate` on `Gamban.app` + the `.dmg` → notarized & stapled?
+- [ ] `systemextensionsctl list` → which NEProvider actually loads (dns-proxy vs content-filter)?
+- [ ] which browser policies it writes, and their values (`DnsOverHttpsMode`, `ExtensionInstallBlocklist`)
+- [ ] privileged helper / LaunchDaemon present? how the signed uninstaller runs privileged steps
+- [ ] tamper behaviour: kill the extension / change DNS → does it re-assert + heartbeat-alert?
