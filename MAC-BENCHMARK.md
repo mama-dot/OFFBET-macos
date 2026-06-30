@@ -95,13 +95,15 @@ each competitor closes:
 | ID | Item | Source | Priority | Status |
 |----|------|--------|----------|--------|
 | M-1 | **NetworkExtension filtering** — DNS-proxy + content-filter *system extension* (Developer ID), carrying the OFFBET matcher. Replaces the v8.2 `/etc/hosts` plan. | Gamban | 🔴 HIGH | ⬜ TODO |
-| M-2 | **Browser managed-policy injection** — write Chrome/Edge/Brave/Firefox managed policies to (a) **disable built-in DoH** or pin it (`DnsOverHttpsMode=off`), (b) **block VPN/proxy extensions** (`ExtensionInstallBlocklist`). Closes the #1 desktop bypass. | Gamban **does it** (`ExtensionInstallBlocklist`/`TrrModeTrustedResolverOnly`/`browserPolicy`); **GamBlock lacks it** → browser-DoH bypass (beatable) | 🔴 HIGH | ⬜ TODO |
+| M-2 | **Browser managed-policy injection** — write Chrome/Edge/Brave/Firefox managed policies to (a) **disable built-in DoH** or pin it (`DnsOverHttpsMode=off`), (b) **block VPN/proxy extensions** (`ExtensionInstallBlocklist`). Closes the #1 desktop bypass. | **Gamban** + **Safezino** do it (`DnsOverHttpsMode`/`ExtensionInstallBlocklist` managed prefs); GamBlock & BetBlocker lack it → browser-DoH bypass | 🔴 HIGH | ⬜ TODO |
 | M-3 | **NEDNSSettings / DNS-proxy config** to own system DNS resolution (the `dns-settings` entitlement). | Gamban | 🟡 MED | ⬜ TODO |
 | M-4 | **Developer ID direct distribution + notarization** (mirrors Windows direct-download). App Store later if useful. | Gamban (DIRECT profile) | 🔴 HIGH | ⬜ TODO |
 | M-5 | **Signature-verified uninstaller + anti-tamper** on the app's own files; `SMAppService` keep-alive so quitting/unloading re-launches. (Apple concedes true anti-uninstall is impossible — see M-6.) | Gamban (`UninstallerEntryPoint`+`signatureVerification`) | 🟡 MED | ⬜ TODO |
 | M-6 | **Companion heartbeat-gap → alert** — the real anti-uninstall lever on macOS (Apple forbids prevention; Gamban's own EULA concedes uninstall). Reuse the existing backend cron. | OFFBET-original (cross-platform) | 🔴 HIGH | ✅ exists backend-side |
 | M-7 | **Standard (non-admin) account guidance** for true lockdown (Screen Time model) — onboarding nudge. | macOS constraint | 🟢 LOW | ⬜ TODO |
 | M-8 | **Bypass-state detection** — watch DNS change, active 3rd-party VPN, extension disabled, profile removed → heartbeat `bypass_attempt`. | parallels Android C-6/C-11 | 🟡 MED | ⬜ TODO |
+| M-9 | **pf anti-VPN firewall** — `pf` anchor that blocks/limits third-party VPN tunnels (utun*/ipsec*) so a NordVPN-style tunnel can't shadow filtering. Tradeoff: may break iCloud Private Relay (acceptable for a blocker). | Safezino (`pf` "anti-VPN v4") | 🟡 MED | ⬜ TODO |
+| M-10 | **Immutable-flag anti-tamper** — `chflags noschg` (+ SIP-aware) on OFFBET's own config (hosts/pf/plists) so casual edits/deletes fail. Honest naming only (no Apple impersonation). | Safezino (`chflags noschg`) | 🟢 LOW | ⬜ TODO |
 
 ---
 
@@ -118,22 +120,28 @@ Screen Time** content filter + passcode model.
 
 ## 5. Audits
 
-### Architecture landscape (3 competitors audited)
+### Architecture landscape (4 competitors audited)
 
-Three distinct filtering models seen — pick OFFBET's deliberately:
+Four distinct models — pick OFFBET's deliberately:
 
-| Competitor | Filtering engine | Distribution | Browser-DoH lockdown | Robustness |
-|------------|------------------|--------------|----------------------|------------|
-| **Gamban** v4 | **NetworkExtension** system extension (dns-proxy + content-filter) | Developer ID direct | ✅ yes (managed policies) | 🟢 strongest |
-| **GamBlock/Detoxify** v1 | **dnscrypt-proxy** root LaunchDaemon → own resolvers (server-side blocking) | Developer ID direct (Sparkle) | ❌ no | 🟡 medium |
-| **BetBlocker** v3.6 | **Electron + `sudo-prompt`** → writes `/etc/hosts` + system DNS | Developer ID direct (electron-updater) | ❌ no | 🔴 weakest |
+| Competitor | Filtering engine | Distribution | Browser-DoH lockdown | Anti-VPN | 100% local | Robustness |
+|------------|------------------|--------------|----------------------|----------|-----------|------------|
+| **Gamban** v4 | **NetworkExtension** system extension (dns-proxy + content-filter) | Developer ID direct (notarized) | ✅ managed policies | via NE | ✅ | 🟢 strongest |
+| **Safezino** v4 | **Shell-installed multi-daemon**: `/etc/hosts` + system DNS→own resolver + **`pf` anti-VPN** + browser policies | **`curl\|sudo bash`** (no app, **no notarization**) | ✅ managed policies | ✅ **pf blocks VPN tunnels** | ❌ own resolver | 🟢 aggressive (shady) |
+| **GamBlock/Detoxify** v1 | **dnscrypt-proxy** root LaunchDaemon → own resolvers (server-side blocking) | Developer ID direct (Sparkle) | ❌ | ❌ | ❌ own resolver | 🟡 medium |
+| **BetBlocker** v3.6 | **Electron + `sudo-prompt`** → writes `/etc/hosts` + system DNS | Developer ID direct (electron-updater) | ❌ | ❌ | partial (hosts) | 🔴 weakest |
 
-Takeaways for OFFBET: (1) **NetworkExtension is the robust target** (Gamban); the
-loopback/hosts models are all bypassable by browser DoH. (2) **M-2 (browser-DoH
-lockdown) is mandatory** — only Gamban does it. (3) keep filtering **100% local**
-(GamBlock ships queries to its resolvers; OFFBET's local matcher is the privacy/$0
-edge). (4) BetBlocker validates the **Electron shell** but its `/etc/hosts`
-mechanism is exactly what OFFBET-Windows already rejected.
+Takeaways: (1) **NetworkExtension is the robust, clean target** (Gamban). (2)
+**M-2 (browser-DoH lockdown) is mandatory** — Gamban & Safezino do it, the rest
+are bypassable by browser DoH. (3) **pf anti-VPN** (Safezino) is a real desktop
+technique worth stealing (M-9). (4) keep filtering **100% local** — Gamblock &
+Safezino ship queries to their own resolvers (privacy + €cost); OFFBET's local
+matcher is the edge.
+
+**Anti-patterns to AVOID (seen in the wild):**
+- ❌ **Impersonating Apple daemons** — Safezino installs `com.apple.systemcache.helperd` / `com.apple.dnscached` plists (stealth). Malware-like, breaks trust, risks flagging. OFFBET stays honestly named.
+- ❌ **Config-supplied `sudo` exec** — BetBlocker runs `app_config.vpn_admin_rights[].exec` as root → remote-config = root-RCE class. OFFBET = fixed-purpose helper, never arbitrary exec.
+- ❌ **DNS to own servers** — GamBlock/Safezino (privacy + scaling cost). OFFBET filters locally.
 
 ### Gamban — `com.gamban.Gamban` v4.0 (desktop) · audited 2026-06-30 (from `Gamban_Setup.dmg`, Linux-side)
 
@@ -244,6 +252,44 @@ mechanism is exactly what OFFBET-Windows already rejected.
 - **TODO on MacBook:** confirm notarization (`spctl`/`stapler`), whether a
   LaunchAgent/Daemon is installed for the watchdog, and exactly which `exec`
   commands run as root.
+
+### Safezino — macOS "6-layer" v4 · audited 2026-06-30 (from public `install.sh`)
+
+> French-market gambling blocker (the Android sibling is in the OFFBET-android
+> doc). On macOS it ships **no signed app** — a `curl -fsSL …/install.sh | sudo
+> bash` one-liner with a per-user token+session. The 60 KB script is fully
+> readable → the most detailed source so far. **Most aggressive of the four.**
+
+- **Distribution:** **`curl | sudo bash`** installer (token + session baked into
+  the command; device-code/browser OAuth via `…/api/v1/auth/*`). **No `.app`, no
+  Developer ID app, no notarization, no Gatekeeper** — pure root shell install.
+- **6 layers (LaunchDaemons `com.safezino.{daemon,watchdog,firewall,block-reporter}`):**
+  1. **`/etc/hosts`** — `0.0.0.0 domain`+`www`, **capped** at `MAX_HOSTS_ENTRIES` (rest via DNS).
+  2. **System DNS → Safezino's own resolver `195.200.15.207`** (+ fallback Quad9
+     `9.9.9.9`) on every network service via `networksetup -setdnsservers`. ⇒ **server-side blocking** (not local).
+  3. **`pf` packet filter** — `/etc/pf.anchors/safezino` "GAMBLING FIREWALL v4
+     (anti-VPN)" **blocks third-party VPN tunnels** (utun*/ipsec*) at packet level
+     (knowingly breaks iCloud Private Relay). ⇒ **M-9**.
+  4. **Browser managed policies** — `/Library/Managed Preferences/{Chrome,Brave,
+     Edge,Firefox}.plist` with `DnsOverHttpsMode`/`DNSOverHTTPS` ⇒ **DoH lockdown (M-2)**.
+  5. **Watchdog / "stealth guardians"** — re-arm DNS+hosts+pf on **STATE** (hosts
+     markers + DNS pointing to Safezino), not file existence; "running but
+     disarmed" → re-arm every ~2 min.
+  6. **block-reporter** daemon — heartbeat/reporting to `…/api/v1`, renews refresh token.
+- **Anti-tamper (aggressive):** **`chflags noschg`** (system immutable flag) on
+  hosts, pf.conf, the anchor, all the daemon plists, the browser-policy plists and
+  the scripts → can't be deleted/edited without clearing the flag first. Plus
+  **two daemons disguised as Apple** (`com.apple.systemcache.helperd`,
+  `com.apple.dnscached`). ⚠️ impersonation = anti-pattern (see above).
+- **Anti-disable (v4, post-incident 2026-05-21):** the daemon **never self-wipes**
+  on a subscription flag; only a local `disable_authorized` file (emitted by the
+  backend **after a 24h-delay user-initiated uninstall flow**) permits teardown.
+- **Net for OFFBET:** richest reference. **Steal:** pf anti-VPN (M-9), browser
+  policy (M-2), immutable-flag anti-tamper (M-10), state-based watchdog re-arm.
+  **Reject:** Apple-daemon impersonation, own-resolver DNS, and (probably) the
+  no-notarization `curl|sudo` UX — a signed/notarized app is more trustworthy.
+- **TODO on MacBook:** the exact pf rules, the browser-policy values
+  (`DnsOverHttpsMode` = off/locked?), and the full 24h uninstall flow.
 
 ### _<next app>_ — `<bundle id>` v? · audited YYYY-MM-DD
 _Template — copy the Gamban block. Capture: distribution (App Store vs Developer
