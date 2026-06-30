@@ -1,0 +1,18 @@
+{
+  "name": "offbet-macos-shell",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OFFBET macOS Electron shell (loads my.offbet.app + native screens + helper IPC)",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "npm run build && electron .",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "typescript": "^5.5.0",
+    "@types/node": "^20.0.0"
+  },
+  "comment": "TODO: align Electron version with OFFBET-windows shell; reuse its renderer config. electron-builder/electron-updater added at packaging time."
+}

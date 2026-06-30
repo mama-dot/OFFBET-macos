@@ -1,0 +1,26 @@
+name: macOS build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14            # Apple silicon, Xcode 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Shared matcher — test
+        run: cd shared && swift test
+
+      - name: Helper daemon — build
+        run: cd helper && swift build -c release
+
+      - name: Electron shell — build
+        run: cd electron && npm install && npm run build
+
+      # TODO: assemble OFFBET.app, then codesign + notarize on tagged releases
+      # using secrets (Developer ID cert in the keychain + OFFBET_NOTARY_PROFILE).
+      # Signing/notarization is skipped on PRs (no secrets).
