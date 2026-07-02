@@ -36,4 +36,5 @@
       "target": ["dir"]
     },
     "comment": "Signing/notarization are driven by env at build time (CSC_LINK/CSC_KEY_PASSWORD + APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID) or by scripts/package-pkg.sh. The privileged LaunchDaemon is installed by packaging/pkg-scripts/postinstall — see BUILD.md."
+  }
 }
