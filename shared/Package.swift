@@ -1,4 +1,4 @@
-// swift-tools-version:5.9
+// swift-tools-version:5.7
 import PackageDescription
 
 // The OFFBET matcher, shared between the macOS helper and the iOS app
@@ -7,7 +7,7 @@ import PackageDescription
 // Android (Kotlin) / Windows (C#).
 let package = Package(
     name: "OffbetMatcher",
-    platforms: [.macOS(.v13), .iOS(.v15)],
+    platforms: [.macOS(.v12), .iOS(.v15)],
     products: [
         .library(name: "OffbetMatcher", targets: ["OffbetMatcher"])
     ],

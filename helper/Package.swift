@@ -1,4 +1,4 @@
-// swift-tools-version:5.9
+// swift-tools-version:5.7
 import PackageDescription
 
 // Privileged root daemon: com.offbet.helper
@@ -7,7 +7,7 @@ import PackageDescription
 // DNS pinning + watchdog, heartbeat, PIN, IPC server.
 let package = Package(
     name: "OffbetHelper",
-    platforms: [.macOS(.v13)],
+    platforms: [.macOS(.v12)],
     dependencies: [
         // Shared matcher (exact + suffix-walk + tokens + allowlist), also used by iOS.
         .package(path: "../shared")
