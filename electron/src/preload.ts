@@ -7,7 +7,11 @@ contextBridge.exposeInMainWorld("offbet", {
   status: () => ipcRenderer.invoke("offbet:status"),
   enable: () => ipcRenderer.invoke("offbet:enable"),
   disable: (pinToken: string) => ipcRenderer.invoke("offbet:disable", pinToken),
+  pinSet: (hash: string) => ipcRenderer.invoke("offbet:pin.set", hash),
   pinVerify: (candidateHash: string) => ipcRenderer.invoke("offbet:pin.verify", candidateHash),
+  blocklistRefresh: () => ipcRenderer.invoke("offbet:blocklist.refresh"),
   uninstallRequest: () => ipcRenderer.invoke("offbet:uninstall.request"),
+  // Native panel → open the account/settings web window.
+  openAccount: () => ipcRenderer.invoke("offbet:open-account"),
   // TODO(mac): onState / onIncident push events (ipcRenderer.on) for live UI.
 });

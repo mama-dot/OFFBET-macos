@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self' data:;" />
+    <link rel="stylesheet" href="styles.css" />
+    <title>OFFBET</title>
+  </head>
+  <body>
+    <main class="panel" id="panel">
+      <header class="brand">
+        <span class="wordmark">OFF<span class="accent">BET</span></span>
+        <button class="link" id="accountBtn" title="Mon compte / réglages">Mon compte ↗</button>
+      </header>
+
+      <section class="status-card" id="statusCard" data-state="loading">
+        <div class="shield" id="shield">🛡️</div>
+        <h1 class="state-title" id="stateTitle">Vérification…</h1>
+        <p class="state-sub" id="stateSub">Connexion au service de protection…</p>
+
+        <button class="toggle" id="toggle" disabled>
+          <span class="toggle-label" id="toggleLabel">…</span>
+        </button>
+      </section>
+
+      <section class="details" id="details">
+        <div class="row"><span>DNS verrouillé</span><b id="dDns">—</b></div>
+        <div class="row"><span>Pare-feu anti-VPN</span><b id="dPf">—</b></div>
+        <div class="row"><span>Navigateurs verrouillés</span><b id="dBrowser">—</b></div>
+        <div class="row"><span>Domaines bloqués</span><b id="dCount">—</b></div>
+        <div class="row"><span>Dernière synchro</span><b id="dSync">—</b></div>
+      </section>
+
+      <footer class="foot">
+        <span id="version">OFFBET pour macOS</span>
+        <button class="link ghost" id="refreshBtn">Actualiser</button>
+      </footer>
+    </main>
+
+    <!-- PIN modal (offline) -->
+    <div class="overlay hidden" id="overlay">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2 id="pinTitle">Code PIN</h2>
+        <p class="pin-sub" id="pinSub">Entrez votre code pour continuer.</p>
+        <div class="pin-dots" id="pinDots"></div>
+        <input class="pin-input" id="pinInput" type="password" inputmode="numeric"
+               autocomplete="off" maxlength="8" aria-label="Code PIN" />
+        <p class="pin-error hidden" id="pinError"></p>
+        <div class="modal-actions">
+          <button class="btn ghost" id="pinCancel">Annuler</button>
+          <button class="btn primary" id="pinConfirm">Valider</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="control.js"></script>
+  </body>
+</html>

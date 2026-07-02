@@ -15,7 +15,7 @@ The Electron shell (unprivileged, user session) talks to **com.offbet.helper**
 
 | cmd | args | effect | returns |
 |-----|------|--------|---------|
-| `status` | — | read protection state | `{ active, dnsPinned, pfActive, browserPolicy, blocklistSize, lastHeartbeatOk }` |
+| `status` | — | read protection state | `{ active, dnsPinned, pfActive, browserPolicy, blocklistSize, lastHeartbeatOk, pinSet }` |
 | `enable` | — | arm: pin DNS, load pf, write browser policies, start resolver | `{ ok }` |
 | `disable` | `{ pinToken }` | **gated** — only with a valid PIN token (offline-verified) or after the 24h uninstall flow | `{ ok }` or `{ error: "pin_required" }` |
 | `pin.set` | `{ hash, hidden, resetDelay }` | store PIN config locally (Keychain) | `{ ok }` |

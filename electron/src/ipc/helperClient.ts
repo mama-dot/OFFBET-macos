@@ -47,8 +47,14 @@ export class HelperClient {
   disable(pinToken: string): Promise<{ ok: boolean; error?: string }> {
     return this.send("disable", { pinToken });
   }
+  pinSet(hash: string, hidden = false, resetDelay = "h24"): Promise<{ ok: boolean }> {
+    return this.send("pin.set", { hash, hidden, resetDelay });
+  }
   pinVerify(candidateHash: string): Promise<{ ok: boolean }> {
     return this.send("pin.verify", { candidateHash });
+  }
+  blocklistRefresh(): Promise<{ ok: boolean; size?: number }> {
+    return this.send("blocklist.refresh");
   }
   uninstallRequest(): Promise<{ ok: boolean; eligibleAt?: number }> {
     return this.send("uninstall.request");

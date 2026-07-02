@@ -21,7 +21,7 @@
     "appId": "com.offbet.mac",
     "productName": "OFFBET",
     "directories": { "output": "release" },
-    "files": ["dist/**/*", "package.json"],
+    "files": ["dist/**/*", "renderer/**/*", "package.json"],
     "extraResources": [
       { "from": "../helper/.build/release/OffbetHelper", "to": "OffbetHelper" },
       { "from": "../helper/Resources/com.offbet.helper.plist", "to": "com.offbet.helper.plist" }

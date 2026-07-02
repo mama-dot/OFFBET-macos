@@ -87,6 +87,7 @@ final class IpcServer {
                 "browserPolicy": policy.isApplied(),
                 "blocklistSize": resolver.blocklistSize,
                 "lastHeartbeatOk": heartbeat.lastOk,
+                "pinSet": pin.isSet(),
             ]
         case "enable":
             dns.pinToLoopback(); pf.installAntiVpnAnchor(); policy.apply()
@@ -97,6 +98,23 @@ final class IpcServer {
             }
             dns.restoreUserDns(); pf.flush(); policy.remove()
             return ["ok": true]
+        case "pin.set":
+            guard let hash = args["hash"] as? String, !hash.isEmpty else {
+                return ["error": "bad_request"]
+            }
+            let hidden = args["hidden"] as? Bool ?? false
+            let delay = Pin.ResetDelay(rawValue: (args["resetDelay"] as? String) ?? "h24") ?? .h24
+            pin.setConfig(hash: hash, hidden: hidden, resetDelay: delay)
+            return ["ok": true]
+        case "pin.verify":
+            let hash = args["candidateHash"] as? String ?? ""
+            return ["ok": pin.verify(candidateHash: hash)]
+        case "blocklist.refresh":
+            heartbeat.sync()
+            return ["ok": true, "size": resolver.blocklistSize]
+        case "uninstall.request":
+            let eligible = pin.requestUninstall()
+            return ["ok": true, "eligibleAt": eligible.timeIntervalSince1970]
         default:
             return ["error": "unknown_cmd"]
         }

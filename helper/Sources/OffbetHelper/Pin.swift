@@ -37,6 +37,12 @@ final class Pin {
         Log.info("Pin config stored (hidden=\(hidden), delay=\(resetDelay.rawValue))")
     }
 
+    /// True once a PIN hash has been stored (offline-verifiable).
+    func isSet() -> Bool {
+        guard let h = load()?.hash else { return false }
+        return !h.isEmpty
+    }
+
     /// Constant-time comparison of the candidate hash to the stored hash.
     func verify(candidateHash: String) -> Bool {
         guard let stored = load()?.hash, !stored.isEmpty else { return false }
