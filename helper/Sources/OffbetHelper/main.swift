@@ -13,9 +13,9 @@ let resolver = Resolver(matcher: matcher)
 let pf = PfController()
 let policy = BrowserPolicy()
 let dns = DnsPinning()
-let heartbeat = Heartbeat()
+let heartbeat = Heartbeat(resolver: resolver)
 let pin = Pin()
-let watchdog = Watchdog(resolver: resolver, pf: pf, policy: policy, dns: dns)
+let watchdog = Watchdog(resolver: resolver, pf: pf, policy: policy, dns: dns, heartbeat: heartbeat)
 
 func armAll() {
     resolver.start()          // loopback DNS resolver on 127.0.0.1:53 (local matcher)

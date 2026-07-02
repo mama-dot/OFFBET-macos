@@ -42,6 +42,12 @@ public final class Resolver {
 
     public func stop() { listener?.cancel(); listener = nil }
 
+    /// Replace the in-memory blocklist (called by Heartbeat after /api/sync).
+    public func reloadBlocklist(_ domains: [String], tokens: [String], allowlist: [String]) {
+        matcher.replace(domains: domains, tokens: tokens, allowlist: allowlist)
+        Log.info("Resolver blocklist reloaded: \(matcher.count) domains")
+    }
+
     public func setChronobetAllow(_ sites: [String]) { chronobetAllow = Set(sites.map { $0.lowercased() }) }
     public func clearChronobetAllow() { chronobetAllow.removeAll() }
     public var blocklistSize: Int { matcher.count }
