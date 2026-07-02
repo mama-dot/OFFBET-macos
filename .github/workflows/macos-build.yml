@@ -15,11 +15,14 @@ jobs:
       - name: Shared matcher — test
         run: cd shared && swift test
 
+      - name: Helper daemon — test (PIN gating, IPC dispatch, DNS wire)
+        run: cd helper && swift test
+
       - name: Helper daemon — build
         run: cd helper && swift build -c release
 
-      - name: Electron shell — build
-        run: cd electron && npm install && npm run build
+      - name: Electron shell — build + unit tests
+        run: cd electron && npm install && npm run build && npm test
 
       # TODO: assemble OFFBET.app, then codesign + notarize on tagged releases
       # using secrets (Developer ID cert in the keychain + OFFBET_NOTARY_PROFILE).
