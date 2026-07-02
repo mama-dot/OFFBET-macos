@@ -31,6 +31,12 @@ jobs:
       - name: Matcher unit tests (XCTest, real Xcode)
         run: cd shared && swift test
 
+      - name: Helper unit tests (PIN gating, IPC dispatch, DNS wire)
+        run: cd helper && swift test
+
+      - name: Shell unit tests (PIN hashing)
+        run: cd electron && npm ci && npm test
+
       - name: Build helper daemon (release)
         run: cd helper && swift build -c release
 

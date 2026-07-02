@@ -77,7 +77,8 @@ final class IpcServer {
     }
 
     // Destructive verbs (disable/uninstall) are GATED (PIN / 24h authorization).
-    private func handle(_ cmd: String, _ args: [String: Any]) -> [String: Any] {
+    // Internal (not private) so the unit tests can drive it via @testable import.
+    func handle(_ cmd: String, _ args: [String: Any]) -> [String: Any] {
         switch cmd {
         case "status":
             return [
@@ -102,6 +103,11 @@ final class IpcServer {
             guard let hash = args["hash"] as? String, !hash.isEmpty else {
                 return ["error": "bad_request"]
             }
+            // GATE: a PIN may only be set when none exists yet. Changing an
+            // existing PIN must go through the 24h uninstall/recovery flow —
+            // otherwise a user could just overwrite the PIN and defeat the
+            // disable gate (the whole point of the PIN).
+            guard !pin.isSet() else { return ["error": "pin_already_set"] }
             let hidden = args["hidden"] as? Bool ?? false
             let delay = Pin.ResetDelay(rawValue: (args["resetDelay"] as? String) ?? "h24") ?? .h24
             pin.setConfig(hash: hash, hidden: hidden, resetDelay: delay)

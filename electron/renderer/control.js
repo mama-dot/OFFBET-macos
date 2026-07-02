@@ -16,11 +16,8 @@ const toggleLabel = el("toggleLabel");
 let current = null; // last status
 let busy = false;
 
-/** SHA-256 hex of the PIN. The helper stores/compares the same hex (Pin.swift). */
-async function hashPin(pin) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pin));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+// SHA-256 hex of the PIN — shared with the unit tests (see pinhash.js).
+const hashPin = (pin) => window.offbetHashPin(pin);
 
 function markRow(id, ok, textOk, textNo) {
   const b = el(id);
@@ -75,12 +72,17 @@ const pinSub = el("pinSub");
 const pinError = el("pinError");
 let pinResolve = null;
 
-function askPin({ title, sub, confirm }) {
+function askPin({ title, sub, confirm, error }) {
   pinTitle.textContent = title;
   pinSub.textContent = sub;
   el("pinConfirm").textContent = confirm;
   pinInput.value = "";
-  pinError.classList.add("hidden");
+  if (error) {
+    pinError.textContent = error;
+    pinError.classList.remove("hidden");
+  } else {
+    pinError.classList.add("hidden");
+  }
   overlay.classList.remove("hidden");
   setTimeout(() => pinInput.focus(), 30);
   return new Promise((resolve) => (pinResolve = resolve));
@@ -117,34 +119,9 @@ async function onToggle() {
   busy = true;
   toggle.disabled = true;
   try {
-    if (current.active) {
-      // Turning OFF requires the PIN.
-      const pin = await askPin({
-        title: "Désactiver la protection",
-        sub: "Entrez votre code PIN pour désactiver OFFBET.",
-        confirm: "Désactiver",
-      });
-      if (pin == null) return;
-      const res = await api.disable(await hashPin(pin));
-      if (res && res.ok) {
-        await refresh();
-      } else {
-        overlay.classList.remove("hidden");
-        pinFail("Code PIN incorrect.");
-        return; // leave modal open for a retry
-      }
-    } else if (!current.pinSet) {
-      // First activation: create a PIN so the user can't silently disable later.
-      const pin = await askPin({
-        title: "Créez votre code PIN",
-        sub: "Il vous sera demandé pour désactiver la protection. Choisissez un code que vous ne partagez pas.",
-        confirm: "Créer et activer",
-      });
-      if (pin == null) return;
-      await api.pinSet(await hashPin(pin));
-      await api.enable();
-      await refresh();
-    } else {
+    if (current.active) await disableFlow();
+    else if (!current.pinSet) await createPinAndEnable();
+    else {
       await api.enable();
       await refresh();
     }
@@ -153,6 +130,55 @@ async function onToggle() {
   } finally {
     busy = false;
     if (overlay.classList.contains("hidden")) toggle.disabled = false;
+  }
+}
+
+// Turning OFF requires the PIN; retry until correct or cancelled.
+async function disableFlow() {
+  let error = null;
+  for (;;) {
+    const pin = await askPin({
+      title: "Désactiver la protection",
+      sub: "Entrez votre code PIN pour désactiver OFFBET.",
+      confirm: "Désactiver",
+      error,
+    });
+    if (pin == null) return; // cancelled → stays protected
+    const res = await api.disable(await hashPin(pin));
+    if (res && res.ok) return refresh();
+    error = "Code PIN incorrect.";
+  }
+}
+
+// First activation: create + confirm a PIN (so a typo can't lock the user out),
+// then arm protection.
+async function createPinAndEnable() {
+  let error = null;
+  for (;;) {
+    const pin = await askPin({
+      title: "Créez votre code PIN",
+      sub: "Il sera demandé pour désactiver la protection. Choisissez un code d'au moins 4 chiffres, gardé pour vous.",
+      confirm: "Continuer",
+      error,
+    });
+    if (pin == null) return; // cancelled → stays off
+    const again = await askPin({
+      title: "Confirmez votre code PIN",
+      sub: "Saisissez à nouveau le même code.",
+      confirm: "Créer et activer",
+    });
+    if (again == null) return;
+    if (again !== pin) {
+      error = "Les deux codes ne correspondent pas.";
+      continue;
+    }
+    const set = await api.pinSet(await hashPin(pin));
+    if (set && set.ok === false) {
+      error = "Impossible d'enregistrer le code.";
+      continue;
+    }
+    await api.enable();
+    return refresh();
   }
 }
 

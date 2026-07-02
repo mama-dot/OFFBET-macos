@@ -11,9 +11,8 @@ set -e
 cd "$(dirname "$0")/.."
 
 D="$(mktemp -d)"
-for f in helper/Sources/OffbetHelper/*.swift; do
-  b="$(basename "$f")"; [ "$b" = "main.swift" ] && continue      # exclude the root daemon entry
-  grep -v 'import OffbetMatcher' "$f" > "$D/$b"
+for f in helper/Sources/OffbetHelperCore/*.swift; do
+  grep -v 'import OffbetMatcher' "$f" > "$D/$(basename "$f")"   # core logic (Daemon incl.)
 done
 cp shared/Sources/OffbetMatcher/Matcher.swift "$D/"
 grep -v 'import OffbetMatcher' helper/dev/main.swift > "$D/main.swift"

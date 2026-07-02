@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "npm run build && electron .",
     "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test test/*.test.js",
     "pack": "npm run build && electron-builder --mac --dir",
     "dist": "npm run build && electron-builder --mac"
   },
