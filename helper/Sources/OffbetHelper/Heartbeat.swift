@@ -63,6 +63,7 @@ final class Heartbeat {
         let allow = (obj["allowlist"] as? [String]) ?? []
         if !domains.isEmpty || !allow.isEmpty {
             resolver?.reloadBlocklist(domains, tokens: tokens, allowlist: allow)
+            BlocklistCache.save(domains: domains, tokens: tokens, allowlist: allow)
         }
     }
 }

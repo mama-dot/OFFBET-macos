@@ -20,8 +20,17 @@ public final class Resolver {
 
     // MARK: lifecycle
 
+    /// Load the cached blocklist so filtering works from boot / offline.
+    public func loadCachedBlocklist(from path: String = BlocklistCache.defaultPath) {
+        if let l = BlocklistCache.load(from: path) {
+            matcher.replace(domains: l.domains, tokens: l.tokens, allowlist: l.allowlist)
+            Log.info("Resolver loaded cached blocklist: \(matcher.count) domains")
+        }
+    }
+
     /// Bind UDP on 127.0.0.1:`port` (default 53; use a high port for unprivileged tests).
     public func start(port: UInt16 = 53) {
+        loadCachedBlocklist()
         let params = NWParameters.udp
         params.allowLocalEndpointReuse = true
         params.requiredLocalEndpoint = .hostPort(host: "127.0.0.1",
