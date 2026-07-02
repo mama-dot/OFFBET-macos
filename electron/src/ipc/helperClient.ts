@@ -5,7 +5,7 @@ import { HELPER_SOCKET } from "../config";
 // root-owned unix socket. See docs/IPC-CONTRACT.md.
 //
 // TODO(mac): handshake/auth with the per-install shared secret; reconnect logic;
-//            push-event stream (state/incident/chronobet.tick).
+//            push-event stream (state/incident).
 
 export interface ProtectionStatus {
   active: boolean;
@@ -49,12 +49,6 @@ export class HelperClient {
   }
   pinVerify(candidateHash: string): Promise<{ ok: boolean }> {
     return this.send("pin.verify", { candidateHash });
-  }
-  chronobetStart(sites: string[], durationSec: number): Promise<{ ok: boolean; endsAt?: number }> {
-    return this.send("chronobet.start", { sites, durationSec });
-  }
-  chronobetStop(): Promise<{ ok: boolean }> {
-    return this.send("chronobet.stop");
   }
   uninstallRequest(): Promise<{ ok: boolean; eligibleAt?: number }> {
     return this.send("uninstall.request");

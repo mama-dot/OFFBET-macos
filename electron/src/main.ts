@@ -4,8 +4,8 @@ import { DASHBOARD_URL, LOGIN_URL } from "./config";
 import { HelperClient } from "./ipc/helperClient";
 
 // OFFBET macOS shell — "maximum webapp": one window renders my.offbet.app
-// (account/settings/Companion/Chronobet/Stripe). Native-feel local windows
-// (ON/OFF, PIN, Chronobet timer) talk to the privileged helper over IPC.
+// (account/settings/Companion/Stripe). Native-feel local windows
+// (ON/OFF, PIN) talk to the privileged helper over IPC.
 //
 // TODO(mac): register the helper as an SMAppService daemon on first run
 //            (requires the Swift side + entitlements; do it from a small
@@ -36,10 +36,6 @@ ipcMain.handle("offbet:status", () => helper.status());
 ipcMain.handle("offbet:enable", () => helper.enable());
 ipcMain.handle("offbet:disable", (_e, pinToken: string) => helper.disable(pinToken));
 ipcMain.handle("offbet:pin.verify", (_e, candidateHash: string) => helper.pinVerify(candidateHash));
-ipcMain.handle("offbet:chronobet.start", (_e, sites: string[], durationSec: number) =>
-  helper.chronobetStart(sites, durationSec),
-);
-ipcMain.handle("offbet:chronobet.stop", () => helper.chronobetStop());
 ipcMain.handle("offbet:uninstall.request", () => helper.uninstallRequest());
 
 app.whenReady().then(() => {
@@ -56,6 +52,6 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
 });
 
-// TODO(mac): native ON/OFF, PIN-entry and Chronobet-timer windows
+// TODO(mac): native ON/OFF and PIN-entry windows
 //            (small local HTML windows, offline-capable — must NOT depend on
 //            the WebView/network). See ARCHITECTURE.md §5.

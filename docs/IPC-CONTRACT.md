@@ -20,8 +20,6 @@ The Electron shell (unprivileged, user session) talks to **com.offbet.helper**
 | `disable` | `{ pinToken }` | **gated** — only with a valid PIN token (offline-verified) or after the 24h uninstall flow | `{ ok }` or `{ error: "pin_required" }` |
 | `pin.set` | `{ hash, hidden, resetDelay }` | store PIN config locally (Keychain) | `{ ok }` |
 | `pin.verify` | `{ candidateHash }` | offline verify | `{ ok }` |
-| `chronobet.start` | `{ sites[], durationSec }` | remove `sites` from the local matcher for the session, start timer | `{ ok, endsAt }` |
-| `chronobet.stop` | — | re-block immediately (timer end or "stop all") | `{ ok }` |
 | `blocklist.refresh` | — | force a `/api/sync` pull | `{ ok, size }` |
 | `uninstall.request` | — | start the **24h-delay** uninstall flow (backend authorizes) | `{ ok, eligibleAt }` |
 
@@ -31,14 +29,13 @@ The Electron shell (unprivileged, user session) talks to **com.offbet.helper**
 |-------|---------|------|
 | `state` | same as `status` | on any change |
 | `incident` | `{ kind: "block"\|"vpn"\|"dns_change"\|"pin_fail", detail }` | on detection (also heartbeat'd) |
-| `chronobet.tick` | `{ remainingSec }` | every second during a session |
 
 ## Heartbeat (helper → backend, not shell)
 
 `POST /api/sync` every 5 min with `os=macOS`, `protection_active`,
 `blocked_attempts[]`, `bypass_attempt`, `pin_failed_attempts`, `pin_hash`,
-`custom_domains`, `session_request`. Returns blocklist + regulated + premium +
-companion + active_session (same contract as Android/Windows).
+`custom_domains`. Returns blocklist + premium + companion (same contract as
+Android/Windows).
 
 ## Security notes
 

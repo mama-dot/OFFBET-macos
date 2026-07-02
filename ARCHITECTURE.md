@@ -3,7 +3,7 @@
 Decision doc for the macOS app. Honors **two hard constraints**:
 
 1. **Same UX as Windows** — an **Electron shell** rendering the existing web app
-   (`my.offbet.app`): account, settings, Companion, PIN config, Chronobet,
+   (`my.offbet.app`): account, settings, Companion, PIN config,
    subscription. Zero new screens ("maximum webapp", roadmap Decision 2).
 2. **The roadmap v8.2 spirit** — **100% local filtering** ($0 DNS, nothing leaves
    the device, RGPD-clean), **PIN verified offline**, **Companion heartbeat**,
@@ -51,8 +51,8 @@ M-11) are **v2 options** — see §8.
 ┌─────────────────────────────────────────────────────────────┐
 │ OFFBET.app  (Electron — same shell as Windows)              │
 │  ├─ WKWebView/Chromium → my.offbet.app  (account, settings, │
-│  │     Companion, PIN config, Chronobet, Stripe)            │
-│  └─ native-feel local screens: ON/OFF, PIN, Chronobet timer │
+│  │     Companion, PIN config, Stripe)                       │
+│  └─ native-feel local screens: ON/OFF, PIN, status          │
 │         (status that must work offline / be non-bypassable) │
 │              │ local IPC (XPC / unix socket, authenticated)  │
 └──────────────┼──────────────────────────────────────────────┘
@@ -121,8 +121,8 @@ only real answer to a user enabling NordVPN etc.
 
 | Screen / function | Type | Why |
 |---|---|---|
-| Onboarding, login, account, settings, Stripe, Companion config, Chronobet history, custom domains | **WebView** (my.offbet.app) | one UI, deployed in 5 min, no app-store round-trip |
-| ON/OFF protection toggle, PIN entry, Chronobet timer, protection status | **Native (Electron local)** | must work offline + be non-bypassable; talks to the helper |
+| Onboarding, login, account, settings, Stripe, Companion config, custom domains | **WebView** (my.offbet.app) | one UI, deployed in 5 min, no app-store round-trip |
+| ON/OFF protection toggle, PIN entry, protection status | **Native (Electron local)** | must work offline + be non-bypassable; talks to the helper |
 
 ---
 

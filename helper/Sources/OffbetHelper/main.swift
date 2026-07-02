@@ -29,6 +29,6 @@ func armAll() {
 armAll()
 
 let ipc = IpcServer(resolver: resolver, pf: pf, policy: policy, dns: dns, pin: pin, heartbeat: heartbeat)
-ipc.serve()   // blocks; handles status/enable/disable/chronobet/uninstall
+ipc.serve()   // blocks; handles status/enable/disable/uninstall
 
 RunLoop.main.run()

@@ -2,7 +2,7 @@ import Foundation
 
 /// POST /api/sync every 5 min (os=macos). Same single-endpoint contract as
 /// Android/Windows: sends protection_active, blocked_attempts[], bypass_attempt;
-/// receives blocklist + tokens + allowlist + premium + companion + active_session.
+/// receives blocklist + tokens + allowlist + premium + companion.
 /// The heartbeat-gap (silence > 10 min) lets the backend alert the Companion —
 /// the imparable anti-uninstall layer (ARCHITECTURE.md §4).
 final class Heartbeat {
@@ -55,7 +55,7 @@ final class Heartbeat {
     }
 
     /// Apply the server response: refresh the local blocklist. (Premium, PIN sync,
-    /// companion, chronobet active_session handled by the daemon wiring — TODO.)
+    /// companion handled by the daemon wiring — TODO.)
     private func apply(_ data: Data) {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         let domains = (obj["blocklist"] as? [String]) ?? []

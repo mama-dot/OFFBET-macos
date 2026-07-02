@@ -97,13 +97,6 @@ final class IpcServer {
             }
             dns.restoreUserDns(); pf.flush(); policy.remove()
             return ["ok": true]
-        case "chronobet.start":
-            let sites = (args["sites"] as? [String]) ?? []
-            resolver.setChronobetAllow(sites)
-            return ["ok": true, "count": sites.count]
-        case "chronobet.stop":
-            resolver.clearChronobetAllow()
-            return ["ok": true]
         default:
             return ["error": "unknown_cmd"]
         }

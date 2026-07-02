@@ -14,7 +14,6 @@ public final class Resolver {
     private let queue = DispatchQueue(label: "com.offbet.resolver")
     private let session = URLSession(configuration: .ephemeral)
     private var listener: NWListener?
-    private var chronobetAllow: Set<String> = []
 
     public init(matcher: Matcher) { self.matcher = matcher }
 
@@ -57,8 +56,6 @@ public final class Resolver {
         Log.info("Resolver blocklist reloaded: \(matcher.count) domains")
     }
 
-    public func setChronobetAllow(_ sites: [String]) { chronobetAllow = Set(sites.map { $0.lowercased() }) }
-    public func clearChronobetAllow() { chronobetAllow.removeAll() }
     public var blocklistSize: Int { matcher.count }
 
     // MARK: per-query handling
@@ -76,7 +73,7 @@ public final class Resolver {
     private func process(_ query: Data, _ reply: @escaping (Data) -> Void) {
         guard let q = Resolver.parseQuestion(query) else { forward(query, reply); return }
         let host = q.name.lowercased()
-        let blocked = !chronobetAllow.contains(host) && matcher.isBlocked(host)
+        let blocked = matcher.isBlocked(host)
         if blocked {
             Log.info("BLOCK \(host)")
             reply(Resolver.nxdomain(for: query, questionEnd: q.end))

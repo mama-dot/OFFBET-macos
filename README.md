@@ -13,8 +13,8 @@ freemium).
 ## Layout
 
 ```
-electron/   Electron shell (TypeScript): loads my.offbet.app + native ON/OFF, PIN,
-            Chronobet-timer windows + the helper IPC client.
+electron/   Electron shell (TypeScript): loads my.offbet.app + native ON/OFF and
+            PIN windows + the helper IPC client.
 helper/     Swift Package — the privileged root daemon (com.offbet.helper):
             loopback DNS resolver, pf anti-VPN, browser managed-policies,
             DNS pinning + watchdog, heartbeat, PIN, IPC server.
