@@ -1,4 +1,5 @@
 import Foundation
+import OffbetMatcher
 
 // Entry point of the privileged root daemon (com.offbet.helper).
 // Lifecycle: launched by launchd via SMAppService (KeepAlive). On start it arms
@@ -7,7 +8,8 @@ import Foundation
 
 Log.info("com.offbet.helper starting")
 
-let resolver = Resolver()
+let matcher = Matcher()   // TODO: load cached blocklist; Heartbeat refreshes it
+let resolver = Resolver(matcher: matcher)
 let pf = PfController()
 let policy = BrowserPolicy()
 let dns = DnsPinning()
