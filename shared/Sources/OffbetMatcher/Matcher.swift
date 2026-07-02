@@ -30,8 +30,11 @@ public final class Matcher {
         return false
     }
 
-    /// True if `host`, or any of its parent domains, is in `set`.
+    /// True if `host` itself, or any of its parent domains, is in `set`.
+    /// (The host itself must be checked too — an exact allowlist/blocklist entry
+    /// like "help.casino.com" has no parent in the set.)
     private func matchesSuffix(_ host: String, in set: Set<String>) -> Bool {
+        if set.contains(host) { return true }
         var h = Substring(host)
         while let dot = h.firstIndex(of: ".") {
             h = h[h.index(after: dot)...]
