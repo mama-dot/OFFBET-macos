@@ -12,6 +12,14 @@ Decision doc for the macOS app. Honors **two hard constraints**:
 Informed by the 6-competitor benchmark in [MAC-BENCHMARK.md](./MAC-BENCHMARK.md)
 (M-1…M-11).
 
+> **Implementation update (2026-07).** Min target lowered to **macOS 12** (broader
+> reach; the dev Mac is Monterey). Install is a Developer ID **`.pkg`** whose
+> `postinstall` installs + loads the privileged LaunchDaemon — this works on
+> macOS 12+ and avoids `SMAppService` (13-only). `SMAppService` becomes an
+> optional `#available(macOS 13)` optimization later. Everything is coded &
+> compiles (helper daemon + Electron shell); only signing/notarization awaits the
+> Apple Developer account.
+
 ---
 
 ## 1. The key reconciliation (read first)

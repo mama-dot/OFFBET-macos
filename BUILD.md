@@ -1,7 +1,16 @@
 # Building OFFBET macOS
 
-> Everything here runs on **macOS 13+ with Xcode**. The Swift helper, codesign,
-> pf and notarization cannot run on Linux. This repo is scaffold + TODOs.
+> Runs on **macOS 12+ with Xcode (or Command Line Tools)**. Dev works on Monterey
+> (Swift 5.7); release/CI on `macos-14`. Swift helper, codesign, pf and
+> notarization cannot run on Linux.
+>
+> **Install model:** a Developer ID **`.pkg`** whose `packaging/pkg-scripts/postinstall`
+> installs + loads the privileged LaunchDaemon (`com.offbet.helper`). This works on
+> macOS 12+ (no SMAppService, which is 13-only). See `scripts/package-pkg.sh`.
+>
+> **Local test without Xcode/SwiftPM:** the matcher + helper compile with plain
+> `swiftc` (CLT-only) — see the recipes in each module's tests and the session
+> notes. XCTest (`swift test`) needs full Xcode → runs on CI (`macos-14`).
 
 ## Prerequisites
 
@@ -18,26 +27,28 @@
 ## Build steps (high level)
 
 ```bash
-# 1. Shared matcher (Swift Package) — unit-tested, no entitlements
-cd shared && swift test && cd ..
+# 1. Shared matcher — tests on CI (Xcode); locally: swiftc (see notes)
+cd shared && swift test && cd ..          # (needs full Xcode)
 
-# 2. Privileged helper daemon (Swift)
+# 2. Privileged helper daemon
 cd helper && swift build -c release && cd ..
-# (Xcode target needed for the SMAppService daemon bundle + entitlements)
 
-# 3. Electron shell
+# 3. Electron shell (full install to get the electron runtime binary)
 cd electron && npm install && npm run build && cd ..
 
-# 4. Assemble OFFBET.app:
-#    OFFBET.app/Contents/MacOS/<electron>            (the shell)
-#    OFFBET.app/Contents/Library/LaunchDaemons/      (com.offbet.helper)
-#    + the helper binary under Contents/MacOS/ or a registered SMAppService daemon
+# 4. One-shot: build helper + app, bundle, sign, and build the installer .pkg
+export OFFBET_SIGN_IDENTITY="Developer ID Application: … (TEAMID)"
+export OFFBET_INSTALLER_IDENTITY="Developer ID Installer: … (TEAMID)"
+bash scripts/package-pkg.sh               # → build/OFFBET-Installer.pkg
 
-# 5. Sign + notarize + package
-bash scripts/codesign.sh
-bash scripts/notarize.sh
-bash scripts/package-dmg.sh
+# 5. Notarize + staple
+xcrun notarytool store-credentials offbet-notary --apple-id … --team-id … --password …
+bash scripts/notarize.sh build/OFFBET-Installer.pkg
 ```
+
+electron-builder signing can alternatively be driven by env
+(`CSC_LINK`/`CSC_KEY_PASSWORD`, `APPLE_ID`/`APPLE_APP_SPECIFIC_PASSWORD`/`APPLE_TEAM_ID`).
+Everything above is ready — it only needs the **Developer ID certs** (Apple account).
 
 ## Entitlements the helper needs (NOT App Store)
 

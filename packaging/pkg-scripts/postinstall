@@ -1,0 +1,30 @@
+#!/bin/bash
+# Runs as root during .pkg install. Installs + loads the OFFBET privileged helper
+# LaunchDaemon (works on macOS 12+, no SMAppService). Honest naming com.offbet.*.
+set -e
+
+APP="/Applications/OFFBET.app"
+RES="$APP/Contents/Resources"
+DEST="/Library/Application Support/OFFBET"
+PLIST="/Library/LaunchDaemons/com.offbet.helper.plist"
+
+mkdir -p "$DEST" /Library/Logs/OFFBET
+
+# Helper binary (bundled in the app under Resources/).
+cp "$RES/OffbetHelper" "$DEST/OffbetHelper"
+chown root:wheel "$DEST/OffbetHelper"
+chmod 755 "$DEST/OffbetHelper"
+
+# LaunchDaemon plist → point Program at the installed absolute path.
+cp "$RES/com.offbet.helper.plist" "$PLIST"
+/usr/libexec/PlistBuddy -c "Delete :BundleProgram" "$PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Delete :Program" "$PLIST" 2>/dev/null || true
+/usr/libexec/PlistBuddy -c "Add :Program string $DEST/OffbetHelper" "$PLIST"
+chown root:wheel "$PLIST"
+chmod 644 "$PLIST"
+
+# (Re)load it.
+launchctl bootout system "$PLIST" 2>/dev/null || true
+launchctl bootstrap system "$PLIST" 2>/dev/null || launchctl load -w "$PLIST" 2>/dev/null || true
+
+exit 0

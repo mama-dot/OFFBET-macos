@@ -7,12 +7,33 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "start": "npm run build && electron .",
-    "lint": "tsc -p tsconfig.json --noEmit"
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "pack": "npm run build && electron-builder --mac --dir",
+    "dist": "npm run build && electron-builder --mac"
   },
   "devDependencies": {
     "electron": "^31.0.0",
+    "electron-builder": "^24.13.3",
     "typescript": "^5.5.0",
     "@types/node": "^20.0.0"
   },
-  "comment": "TODO: align Electron version with OFFBET-windows shell; reuse its renderer config. electron-builder/electron-updater added at packaging time."
+  "build": {
+    "appId": "com.offbet.mac",
+    "productName": "OFFBET",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "package.json"],
+    "extraResources": [
+      { "from": "../helper/.build/release/OffbetHelper", "to": "OffbetHelper" },
+      { "from": "../helper/Resources/com.offbet.helper.plist", "to": "com.offbet.helper.plist" }
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "minimumSystemVersion": "12.0",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "target": ["dir"]
+    },
+    "comment": "Signing/notarization are driven by env at build time (CSC_LINK/CSC_KEY_PASSWORD + APPLE_ID/APPLE_APP_SPECIFIC_PASSWORD/APPLE_TEAM_ID) or by scripts/package-pkg.sh. The privileged LaunchDaemon is installed by packaging/pkg-scripts/postinstall — see BUILD.md."
 }
