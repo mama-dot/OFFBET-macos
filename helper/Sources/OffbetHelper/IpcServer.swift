@@ -1,9 +1,11 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#endif
 
-// Local IPC server for the Electron shell. Newline-delimited JSON over a
-// root-owned unix socket at /var/run/offbet-helper.sock (0600). Fixed verb set
-// only — never executes arbitrary commands (BetBlocker anti-pattern). See
-// docs/IPC-CONTRACT.md.
+/// Local IPC server for the Electron shell. Newline-delimited JSON over a
+/// root-owned unix-domain socket (0600). Fixed verb set only — never executes
+/// arbitrary commands (BetBlocker anti-pattern). See docs/IPC-CONTRACT.md.
 final class IpcServer {
     private let resolver: Resolver
     private let pf: PfController
@@ -12,20 +14,69 @@ final class IpcServer {
     private let pin: Pin
     private let heartbeat: Heartbeat
 
-    init(resolver: Resolver, pf: PfController, policy: BrowserPolicy, dns: DnsPinning, pin: Pin, heartbeat: Heartbeat) {
+    /// Prod path is /var/run/offbet-helper.sock; overridable for unprivileged dev.
+    private let socketPath: String
+
+    init(resolver: Resolver, pf: PfController, policy: BrowserPolicy, dns: DnsPinning,
+         pin: Pin, heartbeat: Heartbeat,
+         socketPath: String = "/var/run/offbet-helper.sock") {
         self.resolver = resolver; self.pf = pf; self.policy = policy
         self.dns = dns; self.pin = pin; self.heartbeat = heartbeat
+        self.socketPath = socketPath
     }
 
+    /// Bind the unix socket and serve connections (blocking accept loop).
     func serve() {
-        // TODO(mac): create the unix socket (0600, root), accept connections,
-        //            authenticate the caller (per-install secret + verify the
-        //            connecting binary's code signature where possible), then
-        //            dispatch the JSON `cmd` to handle(_:).
-        Log.info("IpcServer.serve() — TODO bind /var/run/offbet-helper.sock")
+        unlink(socketPath)
+        let fd = socket(AF_UNIX, SOCK_STREAM, 0)
+        guard fd >= 0 else { Log.error("IpcServer socket() failed"); return }
+
+        var addr = sockaddr_un()
+        addr.sun_family = sa_family_t(AF_UNIX)
+        let cap = MemoryLayout.size(ofValue: addr.sun_path)
+        withUnsafeMutablePointer(to: &addr.sun_path) {
+            $0.withMemoryRebound(to: CChar.self, capacity: cap) { dst in
+                _ = strncpy(dst, socketPath, cap - 1)
+            }
+        }
+        let len = socklen_t(MemoryLayout<sockaddr_un>.size)
+        let bound = withUnsafePointer(to: &addr) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { bind(fd, $0, len) }
+        }
+        guard bound == 0 else { Log.error("IpcServer bind() failed on \(socketPath)"); close(fd); return }
+        chmod(socketPath, 0o600)
+        guard listen(fd, 8) == 0 else { Log.error("IpcServer listen() failed"); close(fd); return }
+        Log.info("IpcServer listening on \(socketPath)")
+
+        while true {
+            let conn = accept(fd, nil, nil)
+            if conn < 0 { continue }
+            handleClient(conn)
+        }
     }
 
-    // Maps a command to an action. Destructive verbs (disable/uninstall) are GATED.
+    private func handleClient(_ conn: Int32) {
+        defer { close(conn) }
+        var buf = [UInt8](repeating: 0, count: 8192)
+        let n = read(conn, &buf, buf.count)
+        guard n > 0 else { return }
+        let line = Data(buf[0..<n])
+        let response = dispatch(line)
+        var out = response; out.append(0x0A) // newline-delimited
+        out.withUnsafeBytes { _ = write(conn, $0.baseAddress, out.count) }
+    }
+
+    /// Parse `{ "cmd": ..., "args": {...} }` and route to the fixed handlers.
+    private func dispatch(_ data: Data) -> Data {
+        guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let cmd = obj["cmd"] as? String else {
+            return json(["error": "bad_request"])
+        }
+        let args = obj["args"] as? [String: Any] ?? [:]
+        return json(handle(cmd, args))
+    }
+
+    // Destructive verbs (disable/uninstall) are GATED (PIN / 24h authorization).
     private func handle(_ cmd: String, _ args: [String: Any]) -> [String: Any] {
         switch cmd {
         case "status":
@@ -41,7 +92,6 @@ final class IpcServer {
             dns.pinToLoopback(); pf.installAntiVpnAnchor(); policy.apply()
             return ["ok": true]
         case "disable":
-            // GATED: require a valid PIN token (offline-verified) or 24h authorization.
             guard let token = args["pinToken"] as? String, pin.verify(candidateHash: token) else {
                 return ["error": "pin_required"]
             }
@@ -50,15 +100,16 @@ final class IpcServer {
         case "chronobet.start":
             let sites = (args["sites"] as? [String]) ?? []
             resolver.setChronobetAllow(sites)
-            return ["ok": true]
+            return ["ok": true, "count": sites.count]
         case "chronobet.stop":
             resolver.clearChronobetAllow()
             return ["ok": true]
-        case "uninstall.request":
-            let eligible = pin.requestUninstall()
-            return ["ok": true, "eligibleAt": eligible.timeIntervalSince1970]
         default:
             return ["error": "unknown_cmd"]
         }
+    }
+
+    private func json(_ dict: [String: Any]) -> Data {
+        (try? JSONSerialization.data(withJSONObject: dict)) ?? Data("{}".utf8)
     }
 }
