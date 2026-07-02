@@ -1,0 +1,87 @@
+name: Release (signed .pkg)
+
+# Builds, signs, notarizes and uploads the OFFBET macOS installer .pkg.
+# Fires on a version tag (v1.2.3) or manually. Everything runs on a fast
+# macos-14 cloud Mac (real Xcode → swift test works, fast electron download).
+#
+# Required repo secrets (add once the Apple Developer account is validated —
+# see docs/CI-SIGNING.md for how to produce each):
+#   APP_CERT_P12_BASE64        base64 of the "Developer ID Application" .p12
+#   INSTALLER_CERT_P12_BASE64  base64 of the "Developer ID Installer" .p12
+#   CERT_PASSWORD              password used when exporting the .p12 files
+#   NOTARY_KEY_BASE64          base64 of the App Store Connect API key (.p8)
+#   NOTARY_KEY_ID              the API key ID
+#   NOTARY_ISSUER_ID           the App Store Connect issuer id (UUID)
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Matcher unit tests (XCTest, real Xcode)
+        run: cd shared && swift test
+
+      - name: Build helper daemon (release)
+        run: cd helper && swift build -c release
+
+      - name: Import Developer ID certificates
+        env:
+          APP_CERT_P12_BASE64: ${{ secrets.APP_CERT_P12_BASE64 }}
+          INSTALLER_CERT_P12_BASE64: ${{ secrets.INSTALLER_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.CERT_PASSWORD }}
+        run: |
+          KC="$RUNNER_TEMP/offbet.keychain-db"
+          security create-keychain -p "" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "" "$KC"
+          echo "$APP_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/app.p12"
+          echo "$INSTALLER_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/inst.p12"
+          security import "$RUNNER_TEMP/app.p12"  -k "$KC" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security import "$RUNNER_TEMP/inst.p12" -k "$KC" -P "$CERT_PASSWORD" -T /usr/bin/productbuild
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | sed s/\"//g)
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KC" >/dev/null
+          rm -f "$RUNNER_TEMP/app.p12" "$RUNNER_TEMP/inst.p12"
+
+      - name: Resolve signing identities
+        run: |
+          APP_ID=$(security find-identity -v -p codesigning | grep "Developer ID Application" | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          INST_ID=$(security find-identity -v | grep "Developer ID Installer" | head -1 | sed -E 's/.*"(.*)".*/\1/')
+          echo "OFFBET_SIGN_IDENTITY=$APP_ID" >> "$GITHUB_ENV"
+          echo "OFFBET_INSTALLER_IDENTITY=$INST_ID" >> "$GITHUB_ENV"
+          echo "Using app: $APP_ID | installer: $INST_ID"
+
+      - name: Install Electron deps (full, with runtime)
+        working-directory: electron
+        run: npm install
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false" # we sign manually in package-pkg.sh
+
+      - name: Build + sign the installer .pkg
+        run: bash scripts/package-pkg.sh "${GITHUB_REF_NAME#v}"
+
+      - name: Notarize + staple
+        env:
+          NOTARY_KEY_BASE64: ${{ secrets.NOTARY_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          echo "$NOTARY_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          xcrun notarytool submit build/OFFBET-Installer.pkg \
+            --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --wait
+          xcrun stapler staple build/OFFBET-Installer.pkg
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OFFBET-Installer-pkg
+          path: build/OFFBET-Installer.pkg
